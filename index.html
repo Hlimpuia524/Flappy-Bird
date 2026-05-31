@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Sky Jumper</title>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src='//libtl.com/sdk.js' data-zone='11080267' data-sdk='show_11080267'></script>
+  <style>
+    body { margin: 0; background: #70c5ce; overflow: hidden; }
+    #game { display: flex; justify-content: center; align-items: center; height: 100vh; }
+  </style>
+</head>
+<body>
+<div id="game"></div>
+<script>
+Telegram.WebApp.ready(); 
+Telegram.WebApp.expand();
+
+let game, bird, pipes, score = 0, bestScore = localStorage.getItem('best') || 0;
+let gameOver = false, gameStarted = false;
+let playBtn, scoreText, bestText;
+
+const config = {
+  type: Phaser.AUTO, 
+  width: 320, 
+  height: 600, 
+  parent: 'game',
+  physics: { default: 'arcade', arcade: { gravity: { y: 800 } } },
+  scene: { preload, create, update }
+};
+
+game = new Phaser.Game(config);
+
+function preload() {
+  this.load.image('bird', 'https://i.imgur.com/JqYeZLn.png');
+  this.load.image('pipe', 'https://i.imgur.com/4Rj4j8U.png');
+}
+
+function create() {
+  this.cameras.main.setBackgroundColor('#70c5ce');
+  
+  playBtn = this.add.text(160, 300, 'PLAY', { 
+    fontSize: '48px', 
+    fill: '#fff', 
+    backgroundColor: '#ff6b35',
+    padding: { x: 30, y: 15 },
+    stroke: '#000', 
+    strokeThickness: 6
+  }).setOrigin(0.5).setInteractive();
+  
+  scoreText = this.add.text(160, 50, '', { 
+    fontSize: '40px', fill: '#fff', stroke: '#000', strokeThickness: 5 
+  }).setOrigin(0.5).setVisible(false);
+  
+  bestText = this.add.text(160, 100, 'Best: ' + bestScore, { 
+    fontSize: '20px', fill: '#fff', stroke: '#000', strokeThickness: 3 
+  }).setOrigin(0.5);
+
+  playBtn.on('pointerdown', () => {
+    playBtn.setVisible(false);
+    bestText.setVisible(false);
+    if (typeof show_11080267 === 'function') {
+      show_11080267().then(() => startGame.call(this)).catch(() => startGame.call(this));
+    } else {
+      startGame.call(this);
+    }
+  });
+}
+
+function startGame() {
+  gameStarted = true;
+  gameOver = false;
+  score = 0;
+  
+  scoreText.setText('0').setVisible(true);
+  bird = this.physics.add.sprite(80, 300, 'bird').setScale(0.8).setCollideWorldBounds(true);
+  pipes = this.physics.add.group();
+  this.physics.add.collider(bird, pipes, endGame, null, this);
+  this.input.on('pointerdown', () => { if (!gameOver && gameStarted) bird.setVelocityY(-350); });
+  this.time.addEvent({ delay: 1500, callback: addPipe, callbackScope: this, loop: true });
+}
+
+function addPipe() {
+  if (gameOver) return;
+  const gap = 120; 
+  const pos = Phaser.Math.Between(100, 400);
+  pipes.create(320, pos - gap, 'pipe').setOrigin(0, 1).setFlipY(true);
+  pipes.create(320, pos + gap, 'pipe').setOrigin(0, 0);
+  pipes.setVelocityX(-200);
+  this.time.delayedCall(1000, () => { if (!gameOver) { score++; scoreText.setText(score); }});
+}
+
+function update() {
+  if (gameOver || !gameStarted) return;
+  if (bird.y > 600 || bird.y < 0) endGame.call(this);
+  pipes.children.entries.forEach(p => { if (p.x < -50) p.destroy(); });
+}
+
+function endGame() {
+  if (gameOver) return;
+  gameOver = true;
+  if (score > bestScore) { bestScore = score; localStorage.setItem('best', bestScore); }
+  bird.setTint(0xff0000);
+  this.physics.pause();
+  
+  this.time.delayedCall(1000, () => {
+    if (typeof show_11080267 === 'function') {
+      show_11080267().then(() => showPlayButton.call(this)).catch(() => showPlayButton.call(this));
+    } else {
+      showPlayButton.call(this);
+    }
+  });
+}
+
+function showPlayButton() {
+  bird.destroy();
+  pipes.clear(true, true);
+  this.physics.resume();
+  playBtn.setText('PLAY AGAIN').setVisible(true);
+  scoreText.setText('Score: ' + score).setVisible(true);
+  bestText.setText('Best: ' + bestScore).setVisible(true);
+  gameStarted = false;
+  gameOver = false;
+}
+</script>
+</body>
+</html>
